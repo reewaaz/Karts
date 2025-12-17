@@ -2,655 +2,619 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ultimate Kart: Rainbow Circuit</title>
+    <title>Super 2D Kart: GP</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Press+Start+2P&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-        body { margin: 0; overflow: hidden; background: #111; font-family: 'Black Ops One', cursive; user-select: none; }
-
-        /* UI OVERLAY */
-        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-
-        /* ITEM BOX */
-        #item-box {
-            position: absolute; top: 20px; left: 20px;
-            width: 100px; height: 100px;
-            background: rgba(0,0,0,0.8);
-            border: 4px solid #fff;
-            border-radius: 20px;
-            box-shadow: 0 0 20px #0ff;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 50px;
-            animation: pulse 2s infinite;
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #111;
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
-        @keyframes pulse { 0% { box-shadow: 0 0 20px #0ff; } 50% { box-shadow: 0 0 40px #0ff; } 100% { box-shadow: 0 0 20px #0ff; } }
 
-        /* SPEEDOMETER & LAP */
-        #stats {
-            position: absolute; bottom: 30px; right: 30px;
-            text-align: right; color: #fff;
-            text-shadow: 2px 2px 0 #000;
+        /* CRT TV EFFECT CONTAINER */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 100vw;
+            max-height: 100vh;
+            background: #000;
+            overflow: hidden;
         }
-        #speed { font-size: 4rem; color: #ff0055; font-style: italic; }
-        #lap { font-size: 2rem; color: #00ffff; margin-top: -10px; }
 
-        /* POS */
-        #rank {
-            position: absolute; top: 20px; right: 20px;
-            font-size: 5rem; color: #ffaa00;
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated; /* Retro look */
+        }
+
+        /* SCANLINE OVERLAY */
+        .scanlines {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* UI ELEMENTS */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 20;
             text-shadow: 4px 4px 0 #000;
         }
 
-        /* CENTER MESSAGE */
-        #msg {
-            position: absolute; top: 30%; width: 100%; text-align: center;
-            font-size: 6rem; color: #fff; text-shadow: 0 0 30px #ff0055;
+        #item-box {
+            position: absolute; top: 20px; left: 20px;
+            width: 80px; height: 80px;
+            border: 4px solid #fff;
+            background: rgba(0,0,0,0.5);
+            color: #ffeb3b;
+            font-size: 40px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 10px;
+        }
+
+        #lap-counter {
+            position: absolute; top: 20px; right: 20px;
+            color: #fff; font-size: 24px;
+            text-align: right;
+        }
+        .small { font-size: 12px; color: #aaa; }
+
+        #center-msg {
+            position: absolute; top: 40%; width: 100%;
+            text-align: center; font-size: 48px; color: #ffeb3b;
             transform: scale(0); transition: transform 0.2s;
         }
         .pop { transform: scale(1) !important; }
 
-        /* CONTROLS GUIDE */
         #controls {
-            position: absolute; bottom: 20px; left: 20px;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 0.7rem; color: rgba(255,255,255,0.6);
-            line-height: 1.5;
+            position: absolute; bottom: 20px; width: 100%;
+            text-align: center; font-size: 12px; color: #888;
         }
-        .key { color: #ff0055; }
     </style>
 </head>
 <body>
 
-<div id="ui">
-    <div id="item-box">?</div>
-    <div id="rank">1st</div>
-    <div id="msg">GO!</div>
-    <div id="stats">
-        <div id="speed">0 <span style="font-size:1.5rem">KM/H</span></div>
-        <div id="lap">LAP 1/3</div>
-    </div>
-    <div id="controls">
-        <span class="key">WASD / ARROWS</span> to Drive<br>
-        <span class="key">SPACE</span> to Drift / Fire Item<br>
-        <span class="key">SHIFT</span> to Hop
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div class="scanlines"></div>
+    
+    <div id="ui-layer">
+        <div id="item-box">?</div>
+        <div id="lap-counter">
+            <span id="pos-ui" style="color:#ffcc00; font-size:40px">1st</span><br>
+            <span id="lap-ui" class="small">LAP 1/3</span>
+        </div>
+        <div id="center-msg">GO!</div>
+        <div id="controls">WASD / ARROWS to Drive • SPACE to Drift/Shoot</div>
     </div>
 </div>
 
-<!-- Three.js Imports -->
-<script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-    }
-  }
-</script>
+<script>
+/**
+ * SUPER 2D KART ENGINE
+ * Using Canvas API 2D
+ */
 
-<script type="module">
-    import * as THREE from 'three';
-    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-    // --- CONFIG ---
-    const C = {
-        roadWidth: 24,
-        maxSpeed: 1.8,
-        boostSpeed: 2.8,
-        turnSpeed: 0.045,
-        accel: 0.02,
-        friction: 0.97,
-        wallBounce: 0.6,
-        laps: 3
+// --- CONFIG ---
+const CONFIG = {
+    maxSpeed: 12,
+    accel: 0.2,
+    turnSpeed: 0.07,
+    friction: 0.96,
+    grassFriction: 0.85,
+    laps: 3
+};
+
+// --- GAME STATE ---
+let gameState = {
+    players: [],
+    projectiles: [],
+    items: [],
+    particles: [],
+    cam: { x:0, y:0, angle:0 },
+    track: null, // The track image data
+    lap: 1,
+    rank: 1,
+    gameActive: true
+};
+
+// INPUTS
+const keys = { w:0, a:0, s:0, d:0, space:0 };
+
+// --- ASSETS (Procedural Generation) ---
+const sprites = {};
+
+function generateSprites() {
+    // Helper to draw to temp canvas
+    const mkCanvas = (w, h, drawFn) => {
+        const c = document.createElement('canvas'); c.width=w; c.height=h;
+        drawFn(c.getContext('2d'), w, h);
+        return c;
     };
 
-    // --- GLOBALS ---
-    let scene, camera, renderer, composer;
-    let player, trackCurve, trackMesh;
-    let enemies = [], projectiles = [], items = [], particles = [];
-    let inventory = null; // 'green', 'red', 'banana', 'mushroom', 'star'
-    let lap = 1, lastT = 0, rank = 1;
-    let starMode = false, starTimer = 0;
-    
-    const keys = { w:0,a:0,s:0,d:0, space:0, shift:0 };
-
-    // --- ASSETS GENERATION (Procedural Textures) ---
-    const createTex = (color, type='grid') => {
-        const c = document.createElement('canvas'); c.width=256; c.height=256;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = color; ctx.fillRect(0,0,256,256);
-        
-        if(type === 'grid') {
-            ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth=4;
-            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(256,0); ctx.lineTo(256,256); ctx.stroke();
-        } else if (type === 'checker') {
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            for(let y=0; y<256; y+=64) for(let x=0; x<256; x+=64) if((x+y)%128===0) ctx.fillRect(x,y,64,64);
-        }
-        const t = new THREE.CanvasTexture(c);
-        t.wrapS = t.wrapT = THREE.RepeatWrapping;
-        return t;
-    };
-
-    // --- INIT ---
-    function init() {
-        scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000510, 0.005);
-        scene.background = new THREE.Color(0x000510);
-
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
-        
-        renderer = new THREE.WebGLRenderer({antialias: false});
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.toneMapping = THREE.ReinhardToneMapping;
-        document.body.appendChild(renderer.domElement);
-
-        // POST PROCESSING (BLOOM)
-        const renderModel = new RenderPass(scene, camera);
-        const bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
-        bloomPass.threshold = 0; bloomPass.strength = 1.2; bloomPass.radius = 0.5;
-        composer = new EffectComposer( renderer );
-        composer.addPass( renderModel );
-        composer.addPass( bloomPass );
-
-        // LIGHTS
-        const amb = new THREE.AmbientLight(0xffffff, 0.5);
-        scene.add(amb);
-        const sun = new THREE.DirectionalLight(0xffffff, 1);
-        sun.position.set(50, 100, 50);
-        sun.castShadow = true;
-        scene.add(sun);
-
-        // BUILD WORLD
-        createTrack();
-        createPlayer();
-        createEnemies();
-        spawnItemBoxes();
-        createStarfield();
-
-        // LISTENERS
-        window.addEventListener('resize', onResize);
-        window.addEventListener('keydown', e => setKey(e, 1));
-        window.addEventListener('keyup', e => setKey(e, 0));
-
-        animate();
-    }
-
-    function setKey(e, v) {
-        const k = e.key.toLowerCase();
-        if(k==='w'||k==='arrowup') keys.w = v;
-        if(k==='s'||k==='arrowdown') keys.s = v;
-        if(k==='a'||k==='arrowleft') keys.a = v;
-        if(k==='d'||k==='arrowright') keys.d = v;
-        if(k===' ') {
-            if(v && !keys.space) useItem(); // Trigger on press
-            keys.space = v;
-        }
-        if(k==='shift') keys.shift = v;
-    }
-
-    // --- GAME OBJECTS ---
-    function createTrack() {
-        const points = [];
-        // Complex twisted loop
-        for(let i=0; i<30; i++) {
-            const t = (i/30) * Math.PI*2;
-            const x = Math.cos(t) * 150 + Math.cos(t*3)*40;
-            const z = Math.sin(t) * 150 + Math.sin(t*3)*40;
-            const y = Math.sin(t*5) * 30;
-            points.push(new THREE.Vector3(x, y, z));
-        }
-        trackCurve = new THREE.CatmullRomCurve3(points, true);
-        
-        // Road Mesh
-        const geo = new THREE.TubeGeometry(trackCurve, 300, C.roadWidth/2, 6, true);
-        const mat = new THREE.MeshStandardMaterial({ 
-            map: createTex('#222', 'checker'), 
-            roughness: 0.4, metalness: 0.6,
-            emissive: 0x111111
-        });
-        mat.map.repeat.set(60, 3);
-        trackMesh = new THREE.Mesh(geo, mat);
-        // Flatten geometry logic for simpler driving
-        // We actually just use the visual mesh, physics is calculated on spline
-        trackMesh.scale.y = 0.1; 
-        scene.add(trackMesh);
-
-        // Neon Rails
-        const railGeo = new THREE.TubeGeometry(trackCurve, 300, C.roadWidth/2 + 1, 3, true);
-        const railMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent:true, opacity:0.3 });
-        const rails = new THREE.Mesh(railGeo, railMat);
-        rails.scale.y = 0.1;
-        scene.add(rails);
-    }
-
-    function createKart(color, isPlayer=false) {
-        const grp = new THREE.Group();
-        // Chassis
-        const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 2), new THREE.MeshStandardMaterial({ color: color, roughness:0.2 }));
-        body.position.y = 0.5;
-        grp.add(body);
-        // Engine
-        const engine = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.4,0.5), new THREE.MeshStandardMaterial({color:0x333}));
-        engine.position.set(0, 0.8, 0.8);
-        grp.add(engine);
+    // 1. KART SPRITE
+    sprites.kart = (color) => mkCanvas(40, 40, (c, w, h) => {
+        // Shadow
+        c.fillStyle = 'rgba(0,0,0,0.5)';
+        c.fillRect(5, 5, 30, 30);
         // Wheels
-        const wMat = new THREE.MeshStandardMaterial({color:0x111});
-        const wGeo = new THREE.CylinderGeometry(0.35,0.35,0.4,16); wGeo.rotateZ(Math.PI/2);
-        const positions = [[0.7,0.35,0.7], [-0.7,0.35,0.7], [0.7,0.35,-0.8], [-0.7,0.35,-0.8]];
-        positions.forEach(p => {
-            const w = new THREE.Mesh(wGeo, wMat);
-            w.position.set(...p); grp.add(w);
-        });
+        c.fillStyle = '#222';
+        c.fillRect(2, 5, 8, 10); c.fillRect(30, 5, 8, 10); // Front
+        c.fillRect(2, 25, 8, 10); c.fillRect(30, 25, 8, 10); // Back
+        // Body
+        c.fillStyle = color;
+        c.beginPath(); c.roundRect(8, 8, 24, 24, 5); c.fill();
+        c.fillStyle = '#fff'; // Engine/Seat
+        c.fillRect(16, 15, 8, 12);
+        // Head
+        c.fillStyle = '#ffccaa';
+        c.beginPath(); c.arc(20, 20, 6, 0, Math.PI*2); c.fill();
+        // Hat
+        c.fillStyle = color;
+        c.beginPath(); c.arc(20, 18, 6, Math.PI, 0); c.fill();
+    });
 
-        if(isPlayer) {
-            // Add light
-            const light = new THREE.PointLight(color, 2, 20);
-            light.position.y = 2;
-            grp.add(light);
+    // 2. ITEMS
+    sprites.shell = (col) => mkCanvas(20, 20, (c) => {
+        c.fillStyle = col; c.beginPath(); c.arc(10, 10, 8, 0, Math.PI*2); c.fill();
+        c.fillStyle = '#fff'; c.fillRect(8, 6, 4, 4); // Shine
+        c.strokeStyle = '#000'; c.lineWidth = 2; c.stroke();
+    });
+
+    sprites.banana = mkCanvas(20, 20, (c) => {
+        c.fillStyle = '#ffeb3b'; 
+        c.beginPath(); c.moveTo(5, 15); c.quadraticCurveTo(10, 5, 15, 15); c.fill();
+        c.strokeStyle='#886600'; c.stroke();
+    });
+
+    sprites.box = mkCanvas(40, 40, (c) => {
+        c.fillStyle = 'rgba(255, 200, 0, 0.8)';
+        c.fillRect(0,0,40,40);
+        c.strokeStyle = '#fff'; c.lineWidth=4; c.strokeRect(0,0,40,40);
+        c.fillStyle = '#fff'; c.font='bold 30px sans-serif'; c.textAlign='center'; c.fillText('?', 20, 30);
+    });
+
+    sprites.tree = mkCanvas(60, 60, (c) => {
+        c.fillStyle = 'rgba(0,0,0,0.3)'; c.beginPath(); c.arc(35,35,20,0,Math.PI*2); c.fill();
+        c.fillStyle = '#228b22'; c.beginPath(); c.arc(30,30,20,0,Math.PI*2); c.fill();
+        c.fillStyle = '#3cb371'; c.beginPath(); c.arc(30,30,15,0,Math.PI*2); c.fill();
+    });
+}
+
+// --- TRACK SYSTEM ---
+// We draw the track to a large invisible canvas. 
+// We use ctx.getImageData to check collisions (Road vs Grass).
+const worldCanvas = document.createElement('canvas');
+const worldCtx = worldCanvas.getContext('2d');
+const WORLD_SIZE = 3000;
+const ROAD_WIDTH = 180; // wide road
+
+const waypoints = []; // For AI
+
+function generateTrack() {
+    worldCanvas.width = WORLD_SIZE;
+    worldCanvas.height = WORLD_SIZE;
+
+    // 1. Fill Grass
+    worldCtx.fillStyle = '#3c9e3c'; // Mario Green
+    worldCtx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+    // Decorative Checkerboard grass
+    worldCtx.fillStyle = '#4cae4c';
+    for(let y=0; y<WORLD_SIZE; y+=100) {
+        for(let x=0; x<WORLD_SIZE; x+=100) {
+            if((x+y)%200===0) worldCtx.fillRect(x,y,100,100);
         }
-        return grp;
     }
 
-    function createPlayer() {
-        const mesh = createKart(0xff0055, true);
-        scene.add(mesh);
-        player = { 
-            mesh, 
-            speed:0, 
-            angle:0, 
-            t:0, 
-            driftVal:0,
-            invincible: false
-        };
+    // 2. Define Track Path (x, y)
+    const path = [
+        {x: 300, y: 300}, {x: 1500, y: 300}, {x: 2500, y: 600},
+        {x: 2700, y: 1500}, {x: 2000, y: 2500}, {x: 800, y: 2500},
+        {x: 300, y: 1500}, {x: 300, y: 300} // Loop
+    ];
+
+    // Smooth Path Logic (Catmull-Rom or Bezier simplified)
+    // We just draw thick lines for now with rounded joints
+    worldCtx.lineCap = 'round';
+    worldCtx.lineJoin = 'round';
+
+    // A. BORDERS (Sand/Offroad)
+    worldCtx.lineWidth = ROAD_WIDTH + 40;
+    worldCtx.strokeStyle = '#d2b48c'; // Tan
+    drawPath(worldCtx, path);
+
+    // B. ROAD (Asphalt)
+    worldCtx.lineWidth = ROAD_WIDTH;
+    worldCtx.strokeStyle = '#555';
+    drawPath(worldCtx, path);
+
+    // C. START LINE
+    worldCtx.save();
+    worldCtx.translate(300, 300);
+    worldCtx.fillStyle = '#fff';
+    for(let i=0; i<ROAD_WIDTH; i+=20) {
+        if((i/20)%2===0) worldCtx.fillRect(-20, i-ROAD_WIDTH/2, 20, 20); // Checkered line
+        else worldCtx.fillStyle='#000'; worldCtx.fillRect(0, i-ROAD_WIDTH/2, 20, 20); worldCtx.fillStyle='#fff';
+    }
+    worldCtx.restore();
+
+    // D. TREES & DECOR
+    for(let i=0; i<50; i++) {
+        let tx = Math.random()*WORLD_SIZE;
+        let ty = Math.random()*WORLD_SIZE;
+        // Don't draw on road (Collision check via pixel reading is expensive here, so we assume random luck or keep simple)
+        worldCtx.drawImage(sprites.tree, tx, ty);
     }
 
-    function createEnemies() {
-        [0x00ff00, 0xffff00, 0x0000ff].forEach((col, i) => {
-            const mesh = createKart(col);
-            scene.add(mesh);
-            enemies.push({
-                mesh, t: (i+1)*0.02, speed: 0.001 + Math.random()*0.0005, 
-                offset: (i-1)*5, angle: 0, spinTimer: 0
+    // GENERATE WAYPOINTS (Interpolate path)
+    for(let i=0; i<path.length-1; i++) {
+        let p1 = path[i];
+        let p2 = path[i+1];
+        let dist = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+        let steps = dist / 100;
+        for(let j=0; j<steps; j++) {
+            let t = j/steps;
+            waypoints.push({
+                x: p1.x + (p2.x - p1.x)*t,
+                y: p1.y + (p2.y - p1.y)*t
             });
-        });
-    }
-
-    function spawnItemBoxes() {
-        const geo = new THREE.BoxGeometry(2,2,2);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true });
-        const coreMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        const coreGeo = new THREE.BoxGeometry(1,1,1);
-
-        for(let i=0; i<8; i++) {
-            const t = (i/8) + 0.05;
-            const pos = trackCurve.getPointAt(t);
-            pos.y += 2;
-            
-            const box = new THREE.Mesh(geo, mat);
-            const core = new THREE.Mesh(coreGeo, coreMat);
-            box.add(core);
-            box.position.copy(pos);
-            
-            scene.add(box);
-            items.push({ mesh: box, active: true, t: t });
         }
     }
+}
 
-    function createStarfield() {
-        const geo = new THREE.BufferGeometry();
-        const verts = [];
-        for(let i=0; i<3000; i++) {
-            verts.push((Math.random()-0.5)*1000, (Math.random()-0.5)*1000, (Math.random()-0.5)*1000);
-        }
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-        const stars = new THREE.Points(geo, new THREE.PointsMaterial({color:0xffffff, size:1.5}));
-        scene.add(stars);
+function drawPath(ctx, points) {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    // Simple interpolation
+    for(let i=1; i<points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+}
+
+// --- ENTITIES ---
+
+class Kart {
+    constructor(x, y, color, isPlayer=false) {
+        this.x = x; this.y = y;
+        this.color = color;
+        this.sprite = sprites.kart(color);
+        this.angle = 0;
+        this.speed = 0;
+        this.isPlayer = isPlayer;
+        this.item = null;
+        this.wpIndex = 0; // Waypoint index for AI
+        this.lap = 1;
+        this.checkpoints = 0;
+        this.boostTimer = 0;
+        this.spinTimer = 0;
+        this.width = 30;
     }
 
-    // --- GAME LOGIC ---
-
-    function useItem() {
-        if(!inventory) return;
-
-        showMsg(inventory.toUpperCase() + "!");
-        
-        if(inventory === 'mushroom') {
-            player.speed = C.boostSpeed * 1.5;
-            createExplosion(player.mesh.position, 0xff0055);
-        }
-        else if(inventory === 'star') {
-            starMode = true;
-            starTimer = 500; // frames
-            player.invincible = true;
-            player.speed = C.boostSpeed;
-        }
-        else if(inventory === 'banana') {
-            const b = new THREE.Mesh(new THREE.ConeGeometry(0.5,1,8), new THREE.MeshStandardMaterial({color:0xffff00}));
-            const dir = new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0), player.angle);
-            b.position.copy(player.mesh.position).sub(dir.multiplyScalar(3));
-            scene.add(b);
-            projectiles.push({ mesh:b, type:'trap' });
-        }
-        else if(inventory === 'green') {
-            spawnShell(0x00ff00, 'straight');
-        }
-        else if(inventory === 'red') {
-            spawnShell(0xff0000, 'homing');
+    update() {
+        if(this.spinTimer > 0) {
+            this.spinTimer--;
+            this.angle += 0.5;
+            this.speed *= 0.9;
+            return;
         }
 
-        inventory = null;
-        updateUI();
-    }
+        // 1. PHYSICS
+        let max = this.boostTimer > 0 ? CONFIG.maxSpeed * 1.5 : CONFIG.maxSpeed;
+        if(this.boostTimer > 0) this.boostTimer--;
 
-    function spawnShell(color, type) {
-        const geo = new THREE.SphereGeometry(0.8);
-        const mat = new THREE.MeshStandardMaterial({color:color, emissive: color, emissiveIntensity: 0.5});
-        const shell = new THREE.Mesh(geo, mat);
-        
-        shell.position.copy(player.mesh.position);
-        shell.position.y += 1;
-        
-        const dir = new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0), player.angle);
-        shell.position.add(dir.clone().multiplyScalar(3)); // Spawn in front
-
-        scene.add(shell);
-        projectiles.push({ 
-            mesh: shell, 
-            type: 'shell', 
-            behavior: type, 
-            dir: dir, 
-            speed: 1.5,
-            target: null 
-        });
-    }
-
-    function showMsg(text) {
-        const el = document.getElementById('msg');
-        el.innerText = text;
-        el.classList.add('pop');
-        setTimeout(() => el.classList.remove('pop'), 1000);
-    }
-
-    function updatePhysics() {
-        // --- PLAYER ---
-        // Acceleration
-        let max = starMode ? C.boostSpeed : C.maxSpeed;
-        if(keys.w) player.speed += C.accel;
-        else if(keys.s) player.speed -= C.accel;
-        else player.speed *= C.friction;
-
-        // Cap
-        player.speed = Math.min(Math.max(player.speed, -C.maxSpeed/2), max * 2); // *2 to allow mushroom overflow decel
-        if(!keys.w && player.speed > max) player.speed *= 0.96; // Decel from boost
-
-        // Turning
-        if(Math.abs(player.speed) > 0.05) {
-            const dir = player.speed > 0 ? 1 : -1;
-            // Drifting
-            if(keys.space && keys.shift) {
-                // Hop logic could go here
-            }
-            // Drift turn is sharper
-            const turnMult = keys.space ? 1.5 : 1.0;
-            if(keys.a) player.angle += C.turnSpeed * dir * turnMult;
-            if(keys.d) player.angle -= C.turnSpeed * dir * turnMult;
-            
-            // Drift sparks
-            if(keys.space && Math.abs(player.speed) > 1) {
-                player.driftVal++;
-                if(player.driftVal % 10 === 0) createParticles(player.mesh.position, 0xffff00, 2);
-            } else {
-                player.driftVal = 0;
-            }
-        }
-
-        // --- BOUNDARY LOGIC (Rayless) ---
-        // We know where the curve is. 
-        // 1. Find ideal position on curve based on current t
-        // But t isn't updated by physics, physics updates real pos, then we find t.
-        
-        // Approximate t based on last known
-        let bestT = player.t;
-        let minDist = Infinity;
-        // Search local area
-        for(let i=-20; i<=20; i++) {
-            let sampleT = player.t + (i * 0.0005);
-            if(sampleT<0) sampleT+=1; if(sampleT>1) sampleT-=1;
-            const pt = trackCurve.getPointAt(sampleT);
-            const d = player.mesh.position.distanceTo(pt);
-            if(d < minDist) { minDist = d; bestT = sampleT; }
-        }
-        player.t = bestT;
-
-        // Check distance to center
-        if(minDist > C.roadWidth/2 - 1.5) {
-            // WALL HIT!
-            const trackPt = trackCurve.getPointAt(bestT);
-            const normal = new THREE.Vector3().subVectors(trackPt, player.mesh.position).normalize();
-            
-            // Push back
-            player.mesh.position.add(normal.multiplyScalar(0.8));
-            
-            // Reflect velocity (Simulated by reducing speed and slight bounce)
-            player.speed *= -0.5; // Bounce back
-            createExplosion(player.mesh.position, 0xffaa00); // Sparks
-        }
-
-        // Apply Movement
-        const vel = new THREE.Vector3(Math.sin(player.angle), 0, Math.cos(player.angle)).multiplyScalar(player.speed);
-        player.mesh.position.add(vel);
-
-        // Height snapping (Gravity)
-        const idealY = trackCurve.getPointAt(player.t).y * 0.1; // Mesh is scaled 0.1
-        player.mesh.position.y = idealY + 0.5;
-        
-        player.mesh.rotation.y = player.angle;
-        // Tilt
-        player.mesh.rotation.z = (keys.a?0.2:(keys.d?-0.2:0)) * (player.speed/max);
-
-        // Star Effect
-        if(starMode) {
-            starTimer--;
-            player.mesh.children[0].material.color.setHSL(Date.now()*0.005 % 1, 1, 0.5);
-            if(starTimer <= 0) {
-                starMode = false;
-                player.mesh.children[0].material.color.setHex(0xff0055);
-                player.invincible = false;
-            }
-        }
-
-        // --- ENEMY AI ---
-        enemies.forEach(e => {
-            if(e.spinTimer > 0) {
-                e.spinTimer--;
-                e.mesh.rotation.y += 0.5;
-                return;
-            }
-
-            e.t += e.speed;
-            if(e.t > 1) e.t = 0;
-            const pos = trackCurve.getPointAt(e.t);
-            const tan = trackCurve.getTangentAt(e.t);
-            const bitan = new THREE.Vector3().crossVectors(tan, new THREE.Vector3(0,1,0)).normalize();
-            
-            // Lane logic
-            pos.add(bitan.multiplyScalar(e.offset));
-            pos.y = pos.y * 0.1 + 0.5;
-            
-            e.mesh.position.lerp(pos, 0.2); // Smooth lerp
-            e.mesh.lookAt(pos.clone().add(tan));
-        });
-
-        // --- PROJECTILES ---
-        for(let i=projectiles.length-1; i>=0; i--) {
-            const p = projectiles[i];
-            
-            if(p.type === 'shell') {
-                if(p.behavior === 'homing') {
-                    // Find nearest enemy in front
-                    if(!p.target) {
-                        let closest = null; let minD = Infinity;
-                        enemies.forEach(e => {
-                            const d = p.mesh.position.distanceTo(e.mesh.position);
-                            if(d < minD && d < 100) { minD = d; closest = e; } // Simple find
-                        });
-                        p.target = closest;
-                    }
-                    if(p.target) {
-                        const targetPos = p.target.mesh.position.clone();
-                        const dirTo = targetPos.sub(p.mesh.position).normalize();
-                        p.dir.lerp(dirTo, 0.1);
-                    }
-                }
-                
-                // Move
-                p.mesh.position.add(p.dir.clone().multiplyScalar(p.speed));
-
-                // Wall Bounce Logic for Green Shell
-                if(p.behavior === 'straight') {
-                     // Check track distance
-                     // (Simplified: just reverse if too far from player/track center)
-                     // Proper raycasting is heavy, so we assume track bounds
-                     // ... for this demo, let's keep it simple: it travels straight until timeout
-                }
-
-                // Collision
-                enemies.forEach(e => {
-                    if(p.mesh.position.distanceTo(e.mesh.position) < 2) {
-                        e.spinTimer = 90;
-                        createExplosion(e.mesh.position, 0xff0000);
-                        scene.remove(p.mesh);
-                        projectiles.splice(i, 1);
-                    }
-                });
-            } 
-            else if (p.type === 'trap') {
-                p.mesh.rotation.y += 0.05;
-                // Collision check against Enemies AND Player
-                if(!player.invincible && player.mesh.position.distanceTo(p.mesh.position) < 1.5) {
-                    player.speed = 0;
-                    createExplosion(player.mesh.position, 0xffff00);
-                    showMsg("HIT!");
-                    scene.remove(p.mesh);
-                    projectiles.splice(i, 1);
-                }
-                enemies.forEach(e => {
-                    if(e.mesh.position.distanceTo(p.mesh.position) < 1.5) {
-                        e.spinTimer = 90;
-                        scene.remove(p.mesh);
-                        projectiles.splice(i, 1);
-                    }
-                });
-            }
-        }
-
-        // --- ITEMS ---
-        items.forEach(box => {
-            if(!box.active) return;
-            box.mesh.rotation.x += 0.02; box.mesh.rotation.y += 0.03;
-            if(player.mesh.position.distanceTo(box.mesh.position) < 2.5) {
-                box.active = false; box.mesh.visible = false;
-                rollItem();
-                setTimeout(() => { box.active=true; box.mesh.visible=true; }, 5000);
-            }
-        });
-
-        // --- PARTICLES ---
-        for(let i=particles.length-1; i>=0; i--) {
-            const pt = particles[i];
-            pt.mesh.position.add(pt.vel);
-            pt.life--;
-            pt.mesh.scale.multiplyScalar(0.9);
-            if(pt.life <= 0) { scene.remove(pt.mesh); particles.splice(i, 1); }
-        }
-
-        // --- GAME LOOP STATS ---
-        if(player.t < 0.1 && lastT > 0.9) {
-            lap++;
-            document.getElementById('lap').innerText = `LAP ${lap}/${C.laps}`;
-            if(lap > C.laps) showMsg("FINISH!");
-        }
-        lastT = player.t;
-
-        // Rank
-        let r = 1; enemies.forEach(e => { if(e.t > player.t) r++; });
-        rank = r;
-        document.getElementById('rank').innerText = r + (r==1?'st':r==2?'nd':r==3?'rd':'th');
-
-        // Update Cam
-        const off = new THREE.Vector3(0, 5, -10).applyAxisAngle(new THREE.Vector3(0,1,0), player.angle);
-        const camPos = player.mesh.position.clone().add(off);
-        camera.position.lerp(camPos, 0.1);
-        camera.lookAt(player.mesh.position);
-
-        updateUI();
-    }
-
-    function rollItem() {
-        const loot = ['green', 'red', 'banana', 'mushroom', 'star'];
-        // Better items if low rank
-        if(rank === 1) inventory = Math.random()>0.5 ? 'banana' : 'green';
-        else if(rank === 4) inventory = Math.random()>0.5 ? 'star' : 'mushroom';
-        else inventory = loot[Math.floor(Math.random()*loot.length)];
-        
-        // Roulette animation UI
-        let iter = 0;
-        const interval = setInterval(() => {
-            document.getElementById('item-box').innerText = ['?','★','🍄','🐢','🍌'][iter%5];
-            iter++;
-            if(iter > 10) {
-                clearInterval(interval);
-                updateUI();
-            }
-        }, 50);
-    }
-
-    function updateUI() {
-        const box = document.getElementById('item-box');
-        if(!inventory) { 
-            // handled by roulette or empty
+        if(this.isPlayer) {
+            if(keys.w) this.speed += CONFIG.accel;
+            else if(keys.s) this.speed -= CONFIG.accel;
+            else this.speed *= CONFIG.friction; // Drag
         } else {
-            const icons = { green:'🐢', red:'❤️', banana:'🍌', mushroom:'🍄', star:'★' };
-            box.innerText = icons[inventory];
-            box.style.color = inventory==='star'?'#ff0':'#fff';
+            // AI LOGIC
+            let target = waypoints[this.wpIndex];
+            let dx = target.x - this.x;
+            let dy = target.y - this.y;
+            let dist = Math.hypot(dx, dy);
+            let targetAngle = Math.atan2(dy, dx);
+            
+            // Turn towards target
+            let diff = targetAngle - this.angle;
+            // Normalize angle
+            while(diff < -Math.PI) diff += Math.PI*2;
+            while(diff > Math.PI) diff -= Math.PI*2;
+            
+            this.angle += Math.sign(diff) * Math.min(Math.abs(diff), CONFIG.turnSpeed);
+            this.speed += CONFIG.accel; // Always gas
+
+            if(dist < 100) {
+                this.wpIndex = (this.wpIndex + 1) % waypoints.length;
+                // Lap Count check for AI (Roughly based on waypoints loop)
+                if(this.wpIndex === 0) this.lap++;
+            }
         }
-        document.getElementById('speed').innerHTML = Math.round(player.speed * 50) + ' <span style="font-size:1.5rem">KM/H</span>';
+
+        // Cap Speed
+        this.speed = Math.min(Math.max(this.speed, -4), max);
+
+        // Turn
+        if(this.isPlayer && Math.abs(this.speed) > 0.5) {
+            if(keys.a) this.angle -= CONFIG.turnSpeed;
+            if(keys.d) this.angle += CONFIG.turnSpeed;
+        }
+
+        // Velocity Vector
+        let vx = Math.cos(this.angle) * this.speed;
+        let vy = Math.sin(this.angle) * this.speed;
+
+        // 2. COLLISION (ROAD CHECK)
+        // We read the pixel under the kart center
+        // To save performance, we only read every few frames or map coordinates
+        // Here we assume integer positions
+        try {
+            let pixel = worldCtx.getImageData(Math.floor(this.x), Math.floor(this.y), 1, 1).data;
+            // Road is Grey (R=85, G=85, B=85) or Start line White
+            // Grass is Green (R~60, G~158)
+            // If Green channel is high and Red/Blue low, it's grass
+            if(pixel[1] > 100 && pixel[0] < 100) {
+                // On Grass -> Slow Down
+                this.speed *= CONFIG.grassFriction;
+                // Add dust particle
+                if(Math.random()>0.5 && Math.abs(this.speed)>2) addParticle(this.x, this.y, '#fff');
+            }
+        } catch(e) {}
+
+        this.x += vx;
+        this.y += vy;
+
+        // 3. LAP CHECK (Player)
+        if(this.isPlayer) {
+            // Distance to start line (300, 300)
+            let distToStart = Math.hypot(this.x - 300, this.y - 300);
+            if(distToStart < 200 && this.checkpoints > 100) {
+                this.lap++;
+                this.checkpoints = 0;
+                document.getElementById('lap-ui').innerText = `LAP ${this.lap}/${CONFIG.laps}`;
+                showMsg(`LAP ${this.lap}!`);
+                if(this.lap > CONFIG.laps) endGame();
+            }
+            this.checkpoints++;
+        }
     }
 
-    function createExplosion(pos, color) {
-        for(let i=0; i<10; i++) {
-            createParticles(pos, color, 1);
-        }
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle + Math.PI/2); // Sprite faces up, engine uses 0 rad = right
+        ctx.drawImage(this.sprite, -20, -20);
+        ctx.restore();
     }
+}
 
-    function createParticles(pos, color, size) {
-        const geo = new THREE.BoxGeometry(size*0.2, size*0.2, size*0.2);
-        const mat = new THREE.MeshBasicMaterial({color: color});
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.copy(pos);
-        mesh.position.x += (Math.random()-0.5);
-        mesh.position.z += (Math.random()-0.5);
+class Projectile {
+    constructor(x, y, angle, type) {
+        this.x = x; this.y = y; this.angle = angle;
+        this.type = type;
+        this.speed = type === 'shell' ? 15 : 0;
+        this.life = 300;
+    }
+    update() {
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        this.life--;
         
-        const vel = new THREE.Vector3((Math.random()-0.5)*0.5, Math.random()*0.5, (Math.random()-0.5)*0.5);
-        scene.add(mesh);
-        particles.push({ mesh, vel, life: 30 });
+        // Bounce logic (Simple bounds)
+        if(this.x < 0 || this.x > WORLD_SIZE) this.angle = Math.PI - this.angle;
+        if(this.y < 0 || this.y > WORLD_SIZE) this.angle = -this.angle;
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        if(this.type === 'shell') ctx.drawImage(sprites.shell('#0f0'), -10, -10);
+        else ctx.drawImage(sprites.banana, -10, -10);
+        ctx.restore();
+    }
+}
+
+// --- MAIN LOOP ---
+
+function init() {
+    generateSprites();
+    generateTrack();
+
+    // Create Player
+    gameState.players.push(new Kart(300, 320, '#ff0000', true)); // Mario
+    // Create CPU
+    gameState.players.push(new Kart(300, 280, '#00ff00')); // Luigi
+    gameState.players.push(new Kart(260, 300, '#ff69b4')); // Peach
+    gameState.players.push(new Kart(260, 340, '#ffff00')); // Wario
+
+    // Item Boxes
+    for(let i=0; i<8; i++) {
+        let wp = waypoints[Math.floor(i * (waypoints.length/8))];
+        gameState.items.push({x: wp.x, y: wp.y, active: true});
     }
 
-    function onResize() {
-        camera.aspect = window.innerWidth/window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        composer.setSize(window.innerWidth, window.innerHeight);
+    // Input Handlers
+    window.addEventListener('keydown', e => {
+        const k = e.key.toLowerCase();
+        if(k==='w'||k==='arrowup') keys.w = 1;
+        if(k==='s'||k==='arrowdown') keys.s = 1;
+        if(k==='a'||k==='arrowleft') keys.a = 1;
+        if(k==='d'||k==='arrowright') keys.d = 1;
+        if(k===' ') {
+            if(!keys.space) useItem();
+            keys.space = 1;
+        }
+    });
+    window.addEventListener('keyup', e => {
+        const k = e.key.toLowerCase();
+        if(k==='w'||k==='arrowup') keys.w = 0;
+        if(k==='s'||k==='arrowdown') keys.s = 0;
+        if(k==='a'||k==='arrowleft') keys.a = 0;
+        if(k==='d'||k==='arrowright') keys.d = 0;
+        if(k===' ') keys.space = 0;
+    });
+    window.addEventListener('resize', resize);
+    resize();
+    requestAnimationFrame(loop);
+}
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+function useItem() {
+    const p = gameState.players[0];
+    if(!p.item) return;
+
+    if(p.item === 'mushroom') {
+        p.boostTimer = 60;
+        showMsg("BOOST!");
+    } else if (p.item === 'shell') {
+        gameState.projectiles.push(new Projectile(p.x, p.y, p.angle, 'shell'));
+    } else if (p.item === 'banana') {
+        gameState.projectiles.push(new Projectile(p.x, p.y, p.angle, 'banana'));
     }
 
-    function animate() {
-        requestAnimationFrame(animate);
-        updatePhysics();
-        composer.render();
-    }
+    p.item = null;
+    document.getElementById('item-box').innerText = "";
+}
 
-    init();
+function showMsg(txt) {
+    const el = document.getElementById('center-msg');
+    el.innerText = txt;
+    el.classList.add('pop');
+    setTimeout(() => el.classList.remove('pop'), 1000);
+}
+
+function addParticle(x, y, color) {
+    gameState.particles.push({x, y, life: 20, vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2, color});
+}
+
+function loop() {
+    if(!gameState.gameActive) return;
+
+    // 1. UPDATE
+    const p1 = gameState.players[0];
+    
+    // Update All Karts
+    gameState.players.forEach(p => p.update());
+    
+    // Camera Follows P1
+    gameState.cam.x = p1.x;
+    gameState.cam.y = p1.y;
+    // Camera Rotate (Optional: Rotate world around car angle for dynamic feel)
+    // To make it easier to drive, let's keep North Up or Car Up?
+    // Let's do Car Up (Mode 7 style feel)
+    gameState.cam.angle = -p1.angle - Math.PI/2;
+
+    // Projectiles
+    gameState.projectiles.forEach((p, i) => {
+        p.update();
+        if(p.life<=0) gameState.projectiles.splice(i,1);
+        // Collision with karts
+        gameState.players.forEach(kart => {
+            if(Math.hypot(kart.x-p.x, kart.y-p.y) < 20 && p.life < 290) { // 290 prevents self hit instantly
+                kart.spinTimer = 60;
+                p.life = 0;
+            }
+        });
+    });
+
+    // Item Pickup
+    gameState.items.forEach(it => {
+        if(!it.active) return;
+        if(Math.hypot(p1.x - it.x, p1.y - it.y) < 30) {
+            it.active = false;
+            setTimeout(()=>it.active=true, 3000);
+            // Give Item
+            const loot = ['mushroom', 'shell', 'banana'];
+            p1.item = loot[Math.floor(Math.random()*loot.length)];
+            
+            // Roulette UI
+            let count = 0;
+            let inter = setInterval(() => {
+                document.getElementById('item-box').innerText = ['?','🍄','🐢','🍌'][count%4];
+                count++;
+                if(count>10) {
+                    clearInterval(inter);
+                    const icon = p1.item==='mushroom'?'🍄':(p1.item==='shell'?'🐢':'🍌');
+                    document.getElementById('item-box').innerText = icon;
+                }
+            }, 50);
+        }
+    });
+
+    // Rank Calc
+    let r = 1;
+    gameState.players.forEach(p => {
+        if(!p.isPlayer && (p.lap > p1.lap || (p.lap===p1.lap && p.wpIndex > p1.wpIndex))) r++;
+    });
+    document.getElementById('pos-ui').innerText = r + (r==1?'st':r==2?'nd':r==3?'rd':'th');
+
+    // 2. DRAW
+    // Clear screen
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+
+    ctx.save();
+    
+    // Move to Center of Screen
+    ctx.translate(canvas.width/2, canvas.height/2);
+    // Rotate World
+    ctx.rotate(gameState.cam.angle);
+    // Move to Player Position
+    ctx.translate(-gameState.cam.x, -gameState.cam.y);
+
+    // A. DRAW TRACK (Optimized: Draw the cached canvas)
+    // We only draw a sub-region for performance if the world is huge, but 3000px is fine for desktop
+    ctx.drawImage(worldCanvas, 0, 0);
+
+    // B. DRAW ITEMS
+    gameState.items.forEach(it => {
+        if(it.active) ctx.drawImage(sprites.box, it.x-20, it.y-20);
+    });
+
+    // C. DRAW PARTICLES
+    gameState.particles.forEach((p, i) => {
+        p.x += p.vx; p.y += p.vy; p.life--;
+        ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 4, 4);
+        if(p.life<=0) gameState.particles.splice(i,1);
+    });
+
+    // D. DRAW PROJECTILES
+    gameState.projectiles.forEach(p => p.draw(ctx));
+
+    // E. DRAW PLAYERS
+    gameState.players.forEach(p => p.draw(ctx));
+
+    ctx.restore();
+
+    requestAnimationFrame(loop);
+}
+
+function endGame() {
+    showMsg("FINISH!");
+    gameState.gameActive = false;
+}
+
+init();
+
 </script>
 </body>
 </html>
